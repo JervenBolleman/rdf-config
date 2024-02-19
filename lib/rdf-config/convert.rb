@@ -3,6 +3,7 @@
 require_relative 'convert/method_parser'
 require_relative 'convert/rdf_generator'
 require_relative 'convert/validator'
+require_relative 'convert/macro'
 
 class RDFConfig
   class Convert
@@ -10,6 +11,7 @@ class RDFConfig
     class InvalidConfig < StandardError; end
 
     MACRO_DIR_NAME = 'macros'
+    MACRO_DIR_PATH = File.join(__dir__, 'convert', MACRO_DIR_NAME)
     SOURCE_FORMATS = %w[csv tsv json xml].freeze
     SOURCE_MACRO_NAME = 'source'
     ROOT_MACRO_NAME = 'root'
@@ -22,6 +24,7 @@ class RDFConfig
 
     def initialize(config, opts)
       @config = config
+      @format = opts[:format] || 'json_ld'
 
       @model = Model.instance(config)
       @method_parser = MethodParser.new
@@ -58,7 +61,11 @@ class RDFConfig
     end
 
     def generate
-      rdf_generator.generate
+      if @format == 'json_ld'
+        json_ld_generator.generate
+      else
+        rdf_generator.generate
+      end
     end
 
     def file_reader(source: @source, file_format: @source_file_format)
@@ -78,16 +85,17 @@ class RDFConfig
     end
 
     def rdf_converter
+      macro = Macro.get_instance(*@macro_names)
       case @source_file_format
       when 'csv', 'tsv'
         require_relative 'convert/converter/csv_converter'
-        CSVConverter.new(@convert_method)
+        CSVConverter.new(@convert_method, macro)
       when 'json'
         require_relative 'convert/converter/json_converter'
-        JSONConverter.new(@convert_method)
+        JSONConverter.new(@convert_method, macro)
       when 'xml'
         require_relative 'convert/converter/xml_converter'
-        XMLConverter.new(@convert_method)
+        XMLConverter.new(@convert_method, macro)
       end
     end
 
@@ -102,6 +110,14 @@ class RDFConfig
       when 'xml'
         require_relative 'convert/rdf_generator/xml2rdf'
         XML2RDF.new(@config, self)
+      end
+    end
+
+    def json_ld_generator
+      case @source_file_format
+      when 'csv', 'tsv'
+        require_relative 'convert/json_ld_generator/csv2json_ld'
+        CSV2JSON_LD.new(@config, self)
       end
     end
 

@@ -3,8 +3,10 @@
 class RDFConfig
   class Convert
     class Converter
-      def initialize(convert_method)
+      def initialize(convert_method, macro)
         @convert_method = convert_method
+        @macro = macro
+
         @target_value = []
         @converted_values = []
         @target_rows = []
@@ -74,17 +76,17 @@ class RDFConfig
       end
 
       def call_convert_method(method_name, target_value, *args)
-        unless respond_to?(method_name.to_sym)
-          require_relative "#{MACRO_DIR_NAME}/#{method_name}"
-          self.class.define_method(
-            method_name.to_sym, self.class.instance_method(method_name.to_sym)
-          )
-        end
+        #--> unless respond_to?(method_name.to_sym)
+        #-->   require_relative "#{MACRO_DIR_NAME}/#{method_name}"
+        #-->   self.class.define_method(
+        #-->     method_name.to_sym, self.class.instance_method(method_name.to_sym)
+        #-->   )
+        #--> end
 
         if target_value.to_s.empty?
           ''
         else
-          send(method_name, target_value, *args)
+          @macro.send(method_name, target_value, *args)
         end
       end
 
