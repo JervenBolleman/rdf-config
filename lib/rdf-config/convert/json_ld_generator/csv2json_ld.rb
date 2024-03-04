@@ -36,7 +36,8 @@ class RDFConfig
         # json_data = @node.map { |id, hash| { '@id' => id }.merge(hash) }
         @json_ld.merge!(data: @node.values)
 
-        puts JSON.pretty_generate(@json_ld)
+        # puts JSON.pretty_generate(@json_ld)
+        puts JSON.generate(@json_ld)
       end
 
       private
@@ -46,6 +47,7 @@ class RDFConfig
 
         @subject_node.each_key do |subject_name|
           @json_ld['@context'][subject_name] = '@id'
+          @json_ld['@context'][subject_type_key(subject_name)] = '@type'
         end
 
         @json_ld['@context']['data'] = '@graph'
@@ -128,7 +130,7 @@ class RDFConfig
         subject_iri = @subject_node[subject_name].first if subject_iri.nil?
 
         json_object_type = type_value_by_subject(triple.subject)
-        add_node(subject_iri, { '@type' => json_object_type }) unless json_object_type.nil?
+        add_node(subject_iri, { subject_type_key(subject_name) => json_object_type }) unless json_object_type.nil?
 
         add_node(subject_iri, object_hash_by_triple(triple, values[value_idx]))
       end
@@ -178,8 +180,19 @@ class RDFConfig
       end
 
       def add_node(key, object_hash)
-        @node[key] = {} unless @node.key?(key)
-        @node[key] = @node[key].merge(object_hash)
+        object_key = object_hash.keys.first
+        return if @node.key?(key) && @node[key][object_key] == object_hash[object_key]
+
+        if @node.key?(key)
+          if @node[key].key?(object_key)
+            @node[key][object_key] = [@node[key][object_key]] unless @node[key][object_key].is_a?(Array)
+            @node[key][object_key] << object_hash[object_key]
+          else
+            @node[key][object_key] = object_hash[object_key]
+          end
+        else
+          @node[key] = object_hash.dup
+        end
       end
 
       def triple_by_object(object_name)
@@ -192,6 +205,10 @@ class RDFConfig
 
       def clear_subject_node
         @subject_node.clear
+      end
+
+      def subject_type_key(subject_name)
+        "#{subject_name}_type"
       end
     end
   end
